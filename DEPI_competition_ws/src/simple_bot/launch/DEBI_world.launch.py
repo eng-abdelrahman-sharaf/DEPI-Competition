@@ -1,5 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
+import os
+home_directory = os.path.expanduser('~')
 
 def generate_launch_description():
     return LaunchDescription([
@@ -22,7 +24,7 @@ def generate_launch_description():
         # 3. Launching Gazebo
         ExecuteProcess(
             cmd=['ros2', 'launch', 'gazebo_ros', 'gazebo.launch.py', 
-                'world:=' + '/home/abdo/Gazebo-Session/simple_bot_ws/src/simple_bot/worlds/DEBI_world'],
+                'world:=' + home_directory+'Gazebo-Session/simple_bot_ws/src/simple_bot/worlds/DEBI_world'],
             output='screen',
             shell=True,
         ),
