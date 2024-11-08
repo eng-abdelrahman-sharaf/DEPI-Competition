@@ -23,11 +23,6 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-# Generate messages
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/ObjectsDetected.msg"
-)
-
 install(DIRECTORY
     launch 
     DESTINATION share/${PROJECT_NAME}

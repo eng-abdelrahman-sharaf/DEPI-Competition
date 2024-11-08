@@ -1,1 +1,0 @@
-ament_cmake_symlink_install_targets("TARGET_FILES" "/home/abdo/Gazebo-Session/DEPI_competition/build/simple_bot/rosidl_generator_py/simple_bot/simple_bot_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so" "TARGETS" "simple_bot__rosidl_typesupport_introspection_c__pyext" "DESTINATION" "local/lib/python3.10/dist-packages/simple_bot")
