@@ -3,12 +3,13 @@ from launch.actions import ExecuteProcess
 import os
 home_directory = os.path.expanduser('~')
 
+
 def generate_launch_description():
     return LaunchDescription([
         # 1. Launching robot_state_publisher for bot1
         ExecuteProcess(
             cmd=['ros2', 'run', 'robot_state_publisher', 'robot_state_publisher',
-                '~/Gazebo-Session/simple_bot_ws/src/simple_bot/description/bot1.urdf', 
+                '~/DEPI_competition/DEPI_competition_ws/src/simple_bot/description/bot1.urdf', 
                 '__ns:=/bot1'],
             output='screen',
             shell=True,
@@ -16,7 +17,7 @@ def generate_launch_description():
         # 2. Launching robot_state_publisher for bot2
         ExecuteProcess(
             cmd=['ros2', 'run', 'robot_state_publisher', 'robot_state_publisher',
-                 '~/Gazebo-Session/simple_bot_ws/src/simple_bot/description/bot2.urdf', 
+                 '~/DEPI_competition/DEPI_competition_ws/src/simple_bot/description/bot2.urdf', 
                  '__ns:=/bot2'],
             output='screen',
             shell=True,
@@ -24,7 +25,7 @@ def generate_launch_description():
         # 3. Launching Gazebo
         ExecuteProcess(
             cmd=['ros2', 'launch', 'gazebo_ros', 'gazebo.launch.py', 
-                'world:=' + home_directory+'Gazebo-Session/simple_bot_ws/src/simple_bot/worlds/DEBI_world'],
+                'world:=' + home_directory+'/DEPI_competition/DEPI_competition_ws//src/simple_bot/worlds/DEBI_world'],
             output='screen',
             shell=True,
         ),
