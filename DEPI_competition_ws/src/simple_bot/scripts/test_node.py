@@ -5,11 +5,10 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
-from geometry_msgs.msg import Point32
 from tf_transformations import euler_from_quaternion
 from simple_bot.msg import ObjectsDetected
 import numpy as np
+from math import sqrt, atan2
 
 class BallKicker(Node):
     def __init__(self):
@@ -62,22 +61,35 @@ class BallKicker(Node):
         if not self.is_rline_visible:
             self.line_avoidance_callback()
 
+
+    #**********moving towards the ball**********
     def move_towards_ball(self):
         if self.ball_position is not None:
             dx = self.ball_position[0] - self.position[0]
             dy = self.ball_position[1] - self.position[1]
-            distance_to_ball = np.sqrt(dx**2 + dy**2)
-            if distance_to_ball > self.hit_distance:
-                twist = Twist()
-                if self.ball_left():
-                    self.rotate_left()
-                elif self.ball_right():
-                    self.rotate_right()
-                elif self.ball_infront():
+            distance_to_ball = sqrt(dx**2 + dy**2)
+
+            angle_to_ball = atan2(dy, dx)
+            angle_diff = angle_to_ball - self.yaw  
+            angle_tolerance = 0.1  
+            kp = 3.0  
+
+            twist = Twist()
+            if abs(angle_diff) > angle_tolerance:  
+                twist.linear.x = 0.0
+                twist.angular.z = kp * angle_diff
+            else: 
+                if distance_to_ball > self.hit_distance:
+                    twist.linear.x = 0.5  
+                    twist.angular.z = 0.0
+                elif self.orientation_towards_line:
                     self.move_forward()
-                self.cmd_vel_publisher.publish(twist)
-            else:
-                self.move_forward()
+                else :
+                    #should implement a function to rotate the bot to face the line
+                    pass 
+
+
+        self.cmd_vel_publisher.publish(twist)
 
 
       #**********line avoidance**********
@@ -87,29 +99,6 @@ class BallKicker(Node):
             self.rotate_left()
         else:
             self.move_forward()
-
-
-
-       #**********check for ball position**********
-    def ball_left(self):
-        if self.ball_position is not None:
-            if self.ball_position[0] < self.position[0] and self.orientation_towards_line:
-                return True
-            else:
-                return False
-    def ball_right(self):
-        if self.ball_position is not None:
-            if self.ball_position[0] > self.position[0] and self.orientation_towards_line:
-                return True
-            else:
-                return False
-            
-    def ball_infront(self):
-        if self.ball_position is not None:
-            if self.ball_position[0] == self.position[0] and self.orientation_towards_line:
-                return True
-            else:
-                return False
             
 
        #**********wall avoidance**********
