@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 from tf_transformations import euler_from_quaternion
 from simple_bot.msg import ObjectsDetected
 import numpy as np
-from math import sqrt, atan2
+from math import sqrt, atan2, pi
 
 class BallKicker(Node):
     def __init__(self):
@@ -26,7 +26,7 @@ class BallKicker(Node):
         self.ball_position = None       # Ball position
 
         self.wall_detection_distance = 0.5  # Distance threshold for wall detection
-        self.line_avoidance_distance = 0.5  # Distance threshold for line detection
+        self.line_avoidance_angle = 0.5  # Distance threshold for line detection
         self.hit_distance = 0.5             # Distance threshold for hitting the ball
 
         self.is_avoiding_wall = False
@@ -41,7 +41,7 @@ class BallKicker(Node):
         self.orientation_list = [self.orientation_q.x, self.orientation_q.y, self.orientation_q.z, self.orientation_q.w]
         (self.roll, self.pitch, self.yaw) = euler_from_quaternion(self.orientation_list)
 
-        if -self.line_avoidance_distance < self.yaw < self.line_avoidance_distance:  
+        if -self.line_avoidance_angle < self.yaw < self.line_avoidance_angle:  
             self.orientation_towards_line = True
         else:
             self.orientation_towards_line = False
@@ -82,12 +82,19 @@ class BallKicker(Node):
                 if distance_to_ball > self.hit_distance:
                     twist.linear.x = 0.5  
                     twist.angular.z = 0.0
+
                 elif self.orientation_towards_line:
                     self.move_forward()
-                else :
-                    #should implement a function to rotate the bot to face the line
-                    pass 
 
+                elif self.yaw > self.line_avoidance_angle :
+                    while(self.yaw <pi):
+                        self.rotate_right()
+                    self.move_towards_ball()
+
+                elif self.yaw < self.line_avoidance_angle :
+                    while(self.yaw <pi):
+                        self.rotate_left()
+                    self.move_towards_ball()
 
         self.cmd_vel_publisher.publish(twist)
 
