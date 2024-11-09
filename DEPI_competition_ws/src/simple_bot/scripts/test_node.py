@@ -5,8 +5,10 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool
+from geometry_msgs.msg import Point32
 from tf_transformations import euler_from_quaternion
-import random
+from simple_bot.msg import ObjectsDetected
 import numpy as np
 
 class BallKicker(Node):
@@ -18,12 +20,19 @@ class BallKicker(Node):
         self.lidar_subscriber = self.create_subscription(LaserScan, '/bot1/scan', self.wall_callback, 10)
         #robot position subscriber
         self.position_robot_subscriber = self.create_subscription(Odometry, '/bot1/odom', self.position_robot_callback, 10)
+        # Subscriber for the custom message
+        self.ball_detection_subscriber = self.create_subscription(ObjectsDetected, '/ball_detection', self.ball_detection_callback, 10)
 
         self.position = [0.5,1.7,0.0]   # change the value to the position of the bot
+        self.ball_position = None       # Ball position
 
         self.wall_detection_distance = 0.5  # Distance threshold for wall detection
+        self.line_avoidance_distance = 0.5  # Distance threshold for line detection
+        self.hit_distance = 0.5             # Distance threshold for hitting the ball
 
         self.is_avoiding_wall = False
+        self.orientation_towards_line = False
+        self.see_line = True
           
     def position_robot_callback(self, msg):
         self.position[0] = msg.pose.pose.position.x
@@ -33,7 +42,77 @@ class BallKicker(Node):
         self.orientation_list = [self.orientation_q.x, self.orientation_q.y, self.orientation_q.z, self.orientation_q.w]
         (self.roll, self.pitch, self.yaw) = euler_from_quaternion(self.orientation_list)
 
+        if -self.line_avoidance_distance < self.yaw < self.line_avoidance_distance:  
+            self.orientation_towards_line = True
+        else:
+            self.orientation_towards_line = False
+        
 
+    def ball_position_callback(self, msg):
+        self.is_ball_detected = msg.is_ball_detected
+        self.ball_position = msg.ball_position  
+        self.is_rline_visible = msg.is_rline_visible  
+
+        if self.is_ball_detected:
+            self.move_towards_ball()
+        else:
+            self.ball_position = None
+            self.search_for_ball()
+
+        if not self.is_rline_visible:
+            self.line_avoidance_callback()
+
+    def move_towards_ball(self):
+        if self.ball_position is not None:
+            dx = self.ball_position[0] - self.position[0]
+            dy = self.ball_position[1] - self.position[1]
+            distance_to_ball = np.sqrt(dx**2 + dy**2)
+            if distance_to_ball > self.hit_distance:
+                twist = Twist()
+                if self.ball_left():
+                    self.rotate_left()
+                elif self.ball_right():
+                    self.rotate_right()
+                elif self.ball_infront():
+                    self.move_forward()
+                self.cmd_vel_publisher.publish(twist)
+            else:
+                self.move_forward()
+
+
+      #**********line avoidance**********
+    def line_avoidance_callback(self):
+        if self.orientation_towards_line:
+            self.stop()
+            self.rotate_left()
+        else:
+            self.move_forward()
+
+
+
+       #**********check for ball position**********
+    def ball_left(self):
+        if self.ball_position is not None:
+            if self.ball_position[0] < self.position[0] and self.orientation_towards_line:
+                return True
+            else:
+                return False
+    def ball_right(self):
+        if self.ball_position is not None:
+            if self.ball_position[0] > self.position[0] and self.orientation_towards_line:
+                return True
+            else:
+                return False
+            
+    def ball_infront(self):
+        if self.ball_position is not None:
+            if self.ball_position[0] == self.position[0] and self.orientation_towards_line:
+                return True
+            else:
+                return False
+            
+
+       #**********wall avoidance**********
     def wall_callback(self, msg):
         #get the laser scan data
         ranges = np.array(msg.ranges)
@@ -52,14 +131,14 @@ class BallKicker(Node):
         front_right_range = np.min(ranges[front_right_index - 30:front_right_index + 1]) 
 
         if front_left_range < self.wall_detection_distance and not self.is_avoiding_wall:
-            self.get_logger().info("Wall detected on the left! Rotating  to avoid it.")
+            self.get_logger().info("Wall detected on the left! Rotating  to avoid it.")  #remove logger if you want not important
             self.stop()  
             self.rotate_right()  
             self.is_avoiding_wall = True  
 
 
         elif front_right_range < self.wall_detection_distance and not self.is_avoiding_wall:
-            self.get_logger().info("Wall detected on the right! Rotating to avoid it.")
+            self.get_logger().info("Wall detected on the right! Rotating to avoid it.")  #remove logger if you want not important
             self.stop() 
             self.rotate_left()  
             self.is_avoiding_wall = True 
@@ -70,22 +149,32 @@ class BallKicker(Node):
                 self.is_avoiding_wall = False  
                 self.move_forward()  
 
+
+        #*******movement functions**********
     def rotate_left(self):
         twist = Twist()
         twist.angular.z = 0.5  
         self.cmd_vel_publisher.publish(twist)
-        self.get_logger().info("Rotating left.")
-        
+
     def rotate_right(self):
         twist = Twist()
         twist.angular.z = -0.5  
-        self.cmd_vel_publisher.publish(twist)
-        self.get_logger().info("Rotating right.")
+        self.cmd_vel_publisher.publish(twist)    
 
     def move_forward(self):
         twist = Twist()
         twist.linear.x = 0.5
         self.cmd_vel_publisher.publish(twist)
+
+
+            #**********search for ball**********
+    def search_for_ball(self):
+        twist = Twist()
+        if not self.is_ball_detected:
+            twist.angular.z = 0.5
+            self.cmd_vel_publisher.publish(twist)
+        else:
+            self.move_towards_ball()
 
 
     
@@ -94,6 +183,8 @@ class BallKicker(Node):
         twist.linear.x = 0.0
         twist.angular.z = 0.0
         self.cmd_vel_publisher.publish(twist)
+
+
 
 def main(args=None):
     rclpy.init(args=args)
